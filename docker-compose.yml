@@ -1,0 +1,78 @@
+version: '3.3'
+
+services:
+
+  proxy:
+    build: ./nginx/
+    container_name: proxy
+    ports:
+      - 80:80
+      - 443:443
+    restart: always
+    networks:
+      - proxy
+    environment:
+      CERTBOT_EMAIL: karnklawmprasrerdh@gmail.com
+      ENVSUBST_VARS: DMN
+      DMN: medzy.dev
+    volumes:
+      - ./conf.d:/etc/nginx/user.conf.d:ro
+      - letsencrypt:/etc/letsencrypt
+
+  gateway:
+    image: kong:1.1.1
+    container_name: gateway
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=postgres
+      - KONG_PG_USER=ukong
+      - KONG_PG_DATABASE=kong
+      - KONG_PG_PASSWORD=ukonga
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+      - KONG_PROXY_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_ERROR_LOG=/dev/stderr
+    restart: always
+    networks:
+      - proxy
+      - db
+      
+  konga:
+    image: pantsel/konga:next
+    restart: always
+    container_name: gateway-ui
+    networks:
+      - proxy
+    environment:
+      TOKEN_SECRET: km1GUr4RkcQD7DewhJPNXrCuZwcKmqjb
+      NODE_ENV: production
+    depends_on:
+      - gateway
+
+  postgres:
+    image: postgres:10-alpine
+    restart: always
+    container_name: postgres
+    networks:
+      - db
+    environment:
+      - POSTGRES_USER=ukong
+      - POSTGRES_PASSWORD=ukonga
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  letsencrypt:
+  postgres-data:
+    external: 
+      name: postgres-data
+
+
+networks:
+  proxy:
+    external: 
+      name: proxy
+  db:
+    external: 
+      name: db
